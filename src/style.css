@@ -1,0 +1,23 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+#game canvas {
+  border-radius: 12px;
+  box-shadow: 0 0 60px rgba(0, 212, 255, 0.15);
+  touch-action: none;
+}

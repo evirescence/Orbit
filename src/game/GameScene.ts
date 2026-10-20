@@ -5,7 +5,7 @@ import { GAME_WIDTH, GAME_HEIGHT, COLORS, ORBIT_CONFIG } from "./config";
 type Screen = "RULES" | "PLAYING" | "GAMEOVER";
 
 export class GameScene extends Phaser.Scene {
-  private game!: OrbitGame;
+  private orbit!: OrbitGame;
   private screen: Screen = "RULES";
 
   private satelliteGfx!: Phaser.GameObjects.Arc;
@@ -30,7 +30,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.createBackground();
 
-    this.game = new OrbitGame(this);
+    this.orbit = new OrbitGame(this);
 
     // графика для игры
     this.trailGfx = this.add.graphics();
@@ -76,19 +76,19 @@ this.crystalsText = this.add.text(
         // ввод: тап по канвасу работает только в PLAYING
     this.input.on("pointerdown", () => {
       if (this.screen === "PLAYING") {
-        this.game.tap();
+        this.orbit.tap();
       }
     });
 
     this.input.keyboard?.on("keydown-SPACE", () => {
       if (this.screen === "PLAYING") {
-        this.game.tap();
+        this.orbit.tap();
       }
     });
 
     this.input.keyboard?.on("keydown-UP", () => {
       if (this.screen === "PLAYING") {
-        this.game.tap();
+        this.orbit.tap();
       }
     });
 
@@ -236,7 +236,7 @@ this.crystalsText = this.add.text(
     this.trailGfx.setVisible(v);
     this.scoreText.setVisible(v);
     this.bestText.setVisible(v);
-    for (const p of this.game.planets) p.setVisible(v);
+    for (const p of this.orbit.planets) p.setVisible(v);
     this.comboText.setVisible(v);
     this.crystalsText.setVisible(v);
   }
@@ -245,7 +245,7 @@ this.crystalsText = this.add.text(
     this.screen = "PLAYING";
 
     // очищаем поле
-    this.game.reset();
+    this.orbit.reset();
 
     // прячем оверлеи
     this.rulesContainer.setVisible(false);
@@ -262,7 +262,7 @@ this.crystalsText = this.add.text(
     this.screen = "GAMEOVER";
 
     // прячем игровые объекты (поле чистое)
-    for (const p of this.game.planets) p.setVisible(false);
+    for (const p of this.orbit.planets) p.setVisible(false);
     this.satelliteGfx.setVisible(false);
     this.trailGfx.clear();
     this.comboText.setVisible(false);
@@ -273,8 +273,8 @@ this.crystalsText.setVisible(false);
     this.bestText.setVisible(false);
 
     // заполняем данные
-    this.finalScoreText.setText(String(this.game.score));
-    this.bestResultText.setText(`best ${this.game.best}`);
+    this.finalScoreText.setText(String(this.orbit.score));
+    this.bestResultText.setText(`best ${this.orbit.best}`);
 
     this.gameOverContainer.setVisible(true);
     this.gameOverContainer.setAlpha(0);
@@ -292,22 +292,22 @@ this.crystalsText.setVisible(false);
     if (this.screen !== "PLAYING") return;
 
     const dt = delta / 1000;
-    this.game.update(dt);
+    this.orbit.update(dt);
 
     // если игра умерла — переключаемся на экран game over
-    if (this.game.state === "DEAD") {
+    if (this.orbit.state === "DEAD") {
       this.showGameOver();
       return;
     }
 
     // рендер спутника
     this.satelliteGfx.setPosition(
-      this.game.satellite.x, this.game.satellite.y
+      this.orbit.satellite.x, this.orbit.satellite.y
     );
 
     // trail
     this.trailGfx.clear();
-    const tr = this.game.trail;
+    const tr = this.orbit.trail;
     for (let i = 0; i < tr.length; i++) {
       const t = i / tr.length;
       this.trailGfx.fillStyle(COLORS.satellite, t * 0.6);
@@ -316,14 +316,14 @@ this.crystalsText.setVisible(false);
     }
 
     // HUD
-    this.scoreText.setText(String(this.game.score));
-    this.bestText.setText(`best ${this.game.best}`);
+    this.scoreText.setText(String(this.orbit.score));
+    this.bestText.setText(`best ${this.orbit.best}`);
     this.comboText.setText(
-      `COMBO x${this.game.combo}`
+      `COMBO x${this.orbit.combo}`
     );
 
     this.crystalsText.setText(
-      `◆ ${this.game.crystalsCollected}`
+      `◆ ${this.orbit.crystalsCollected}`
     );
   }
 

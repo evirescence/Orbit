@@ -232,22 +232,20 @@ export class OrbitGame {
 
   
 private spawnCrystal(): void {
+  // 1. Проверяем лимит: не больше 10 кристаллов на экране
+  if (this.crystals.length >= 10) return;
+
   const pad = 40;
   const radius = 10;
-  const minGap = 35;
+  const minGap = 45; // Увеличили зазор, чтобы звездочки не прилипали к планетам
 
-  for (let attempt = 0; attempt < 80; attempt++) {
-    const x = Phaser.Math.FloatBetween(
-      pad, GAME_WIDTH - pad
-    );
-    const y = Phaser.Math.FloatBetween(
-      pad, GAME_HEIGHT - pad
-    );
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const x = Phaser.Math.FloatBetween(pad, GAME_WIDTH - pad);
+    const y = Phaser.Math.FloatBetween(pad, GAME_HEIGHT - pad);
 
-    // Не создаём кристалл рядом с планетами
+    // 2. Проверяем, чтобы кристалл не спавнился на планете или слишком близко к ней
     const overlapsPlanet = this.planets.some((p) =>
-      Phaser.Math.Distance.Between(x, y, p.x, p.y)
-        < p.radius + minGap
+      Phaser.Math.Distance.Between(x, y, p.x, p.y) < p.radius + radius + minGap
     );
 
     if (overlapsPlanet) continue;
@@ -255,37 +253,26 @@ private spawnCrystal(): void {
     // Не создаём кристаллы друг на друге
     const overlapsCrystal = this.crystals.some((c) =>
       !c.collected &&
-      Phaser.Math.Distance.Between(x, y, c.x, c.y)
-        < radius * 2 + minGap
+      Phaser.Math.Distance.Between(x, y, c.x, c.y) < radius * 2 + minGap
     );
 
     if (overlapsCrystal) continue;
 
-
     const star = this.scene.add.star(
-  0,      // x
-  0,      // y
-  5,      // количество лучей
-  5,      // внутренний радиус
-  12,     // внешний радиус
-  0xffe66d // золотистый цвет
-);
+      0, 0, 5, 5, 12, 0xffe66d
+    );
 
-star.setStrokeStyle(2, 0xffffff, 0.9);
-
+    star.setStrokeStyle(2, 0xffffff, 0.9);
 
     const object = this.scene.add.container(x, y, [star]);
-
     object.setDepth(5);
 
     this.crystals.push({
       x, y, object, collected: false,
     });
 
-    return;
+    return; // Успешно создали, выходим
   }
-
-  // Если места нет, попробуем создать кристалл позже
 }
 
 
@@ -353,45 +340,34 @@ private collectCrystals(): void {
 
 
 private spawnNextPlanet(initial: boolean): void {
-  const anchor =
-    this.planets[this.planets.length - 1] ??
-    this.currentPlanet;
-
+  const anchor = this.planets[this.planets.length - 1] ?? this.currentPlanet;
   if (!anchor) return;
 
   let dirAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
 
   if (!initial) {
     const prev = this.planets[this.planets.length - 2];
-
     if (prev) {
-      dirAngle = Math.atan2(
-        anchor.y - prev.y,
-        anchor.x - prev.x
-      );
+      dirAngle = Math.atan2(anchor.y - prev.y, anchor.x - prev.x);
     }
   }
 
   const kind = this.pickPlanetKind();
-
   const radius = kind === "blackhole"
     ? Phaser.Math.FloatBetween(24, 34)
-    : Phaser.Math.FloatBetween(34, 56) *
-      (1 - Math.min(this.jumps * 0.005, 0.3));
+    : Phaser.Math.FloatBetween(34, 56) * (1 - Math.min(this.jumps * 0.005, 0.3));
 
   const pad = 80;
   let x = 0;
   let y = 0;
   let found = false;
 
-  // Сначала нормальный зазор, затем меньший
-  for (const minGap of [40, 25, 10, 0]) {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const angle =
-        dirAngle + Phaser.Math.FloatBetween(-1.2, 1.2);
-
-      const distance =
-        Phaser.Math.FloatBetween(220, 360);
+  // Увеличили минимальный зазор между планетами (было 40, стало 50)
+  // и добавили больше попыток поиска
+  for (const minGap of [50, 30, 15]) {
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const angle = dirAngle + Phaser.Math.FloatBetween(-1.0, 1.0);
+      const distance = Phaser.Math.FloatBetween(200, 350);
 
       x = Phaser.Math.Clamp(
         anchor.x + Math.cos(angle) * distance,
@@ -405,11 +381,9 @@ private spawnNextPlanet(initial: boolean): void {
         GAME_HEIGHT - pad - radius
       );
 
+      // Проверяем, что новая планета не пересекается ни с одной существующей
       const free = this.planets.every((p) => {
-        const d = Phaser.Math.Distance.Between(
-          x, y, p.x, p.y
-        );
-
+        const d = Phaser.Math.Distance.Between(x, y, p.x, p.y);
         return d >= radius + p.radius + minGap;
       });
 
@@ -418,54 +392,33 @@ private spawnNextPlanet(initial: boolean): void {
         break;
       }
     }
-
     if (found) break;
   }
 
-  // Не создаём планету поверх другой
+  // Если совсем нет места (экран забит), удаляем самую дальнюю планету-обманку
   if (!found) {
-    // Освобождаем место, удаляя самую дальнюю
-    // от текущей планеты неактивную цель.
-    const candidates = this.planets.filter(
-      (p) => p !== this.currentPlanet
-    );
-
-    candidates.sort(
-      (a, b) =>
-        b.distanceTo(anchor.x, anchor.y) -
-        a.distanceTo(anchor.x, anchor.y)
-    );
-
+    const candidates = this.planets.filter((p) => p !== this.currentPlanet);
+    candidates.sort((a, b) => b.distanceTo(anchor.x, anchor.y) - a.distanceTo(anchor.x, anchor.y));
     const old = candidates[0];
 
     if (old) {
-      this.planets = this.planets.filter(
-        (p) => p !== old
-      );
       old.destroy();
-
-      // Повторяем генерацию уже с меньшим числом планет
+      this.planets = this.planets.filter((p) => p !== old);
+      
+      // Рекурсивно вызываем спавн еще раз, теперь место освободилось
       this.spawnNextPlanet(initial);
     }
-
     return;
   }
 
   const planet = new Planet(this.scene, {
-    x,
-    y,
-    radius,
-    kind,
+    x, y, radius, kind,
     color: this.colorForKind(kind),
     omega: ORBIT_CONFIG.baseOmega,
   });
 
   if (kind === "vanishing") {
-    planet.vanishOnRatio = Phaser.Math.Clamp(
-      0.7 - this.jumps * 0.005,
-      0.45,
-      0.7
-    );
+    planet.vanishOnRatio = Phaser.Math.Clamp(0.7 - this.jumps * 0.005, 0.45, 0.7);
   }
 
   this.planets.push(planet);

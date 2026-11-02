@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { OrbitGame } from "./OrbitGame";
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, ORBIT_CONFIG } from "./config";
 
-type Screen = "RULES" | "PLAYING" | "GAMEOVER";
+type Screen = "RULES" | "PLAYING" | "PAUSED" | "GAMEOVER";
 
 export class GameScene extends Phaser.Scene {
   private orbit!: OrbitGame;
@@ -22,6 +22,8 @@ export class GameScene extends Phaser.Scene {
   private gameOverContainer!: Phaser.GameObjects.Container;
   private finalScoreText!: Phaser.GameObjects.Text;
   private bestResultText!: Phaser.GameObjects.Text;
+  private pauseContainer!: Phaser.GameObjects.Container;
+  private pauseButton!: Phaser.GameObjects.Container;
 
   constructor() {
     super("GameScene");
@@ -72,6 +74,7 @@ this.crystalsText = this.add.text(
 
     this.createRulesScreen();
     this.createGameOverScreen();
+    this.createPauseScreen();
 
         // ввод: тап по канвасу работает только в PLAYING
     this.input.on("pointerdown", () => {
@@ -92,35 +95,39 @@ this.crystalsText = this.add.text(
       }
     });
 
+    this.input.keyboard?.on("keydown-P", () => this.togglePause());
+    this.input.keyboard?.on("keydown-ESC", () => this.togglePause());
+
     // прячем игровой HUD и графику до старта
     this.setGameplayVisible(false);
     this.rulesContainer.setVisible(true);
     this.gameOverContainer.setVisible(false);
+    this.pauseContainer.setVisible(false);
   }
 
   // ---------- ЭКРАН ПРАВИЛ ----------
 
   private createRulesScreen(): void {
     const cx = GAME_WIDTH / 2;
-    const cy = GAME_HEIGHT / 2 -180;
+    const cy = GAME_HEIGHT / 2;
 
     // полупрозрачный тёмный фон
     const bg = this.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75);
 
-    const title = this.add.text(cx, cy - 20, "ORBIT", {
+    const title = this.add.text(cx, cy - 220, "ORBIT", {
       fontFamily: "system-ui, sans-serif",
       fontSize: "64px",
       color: "#00d4ff",
       fontStyle: "bold",
     }).setOrigin(0.5);
 
-    const subtitle = this.add.text(cx, cy + 20, "космический прыжок", {
+    const subtitle = this.add.text(cx, cy - 175, "космический прыжок", {
       fontFamily: "system-ui, sans-serif",
       fontSize: "16px",
       color: "#8888aa",
     }).setOrigin(0.5);
 
-    const rules = this.add.text(cx, cy + 30, [
+    const rules = this.add.text(cx, cy - 140, [
       "Как играть:",
       "",
       "1.  Спутник летает вокруг планеты",
@@ -144,7 +151,7 @@ this.crystalsText = this.add.text(
       align: "left",
     }).setOrigin(0.5, 0);
 
-    const button = this.createButton(cx, GAME_HEIGHT - 80, "ИГРАТЬ", () => {
+    const button = this.createButton(cx, GAME_HEIGHT - 50, "ИГРАТЬ", () => {
       this.startGame();
     });
 
@@ -188,6 +195,32 @@ this.crystalsText = this.add.text(
     this.gameOverContainer = this.add.container(0, 0, [
       bg, title, this.finalScoreText, this.bestResultText, button,
     ]).setDepth(20);
+  }
+
+  private createPauseScreen(): void {
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const bg = this.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.8);
+    const title = this.add.text(cx, cy - 55, "ПАУЗА", {
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "48px",
+      color: "#00d4ff",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    const resumeButton = this.createButton(cx, cy + 35, "ПРОДОЛЖИТЬ", () => {
+      this.togglePause();
+    }, 250, 56);
+
+    this.pauseContainer = this.add.container(0, 0, [bg, title, resumeButton])
+      .setDepth(30);
+    this.pauseButton = this.createButton(
+      GAME_WIDTH - 76,
+      108,
+      "ПАУЗА",
+      () => this.togglePause(),
+      120,
+      40,
+    ).setDepth(10);
   }
 
   // ---------- КНОПКА ----------
@@ -239,6 +272,8 @@ this.crystalsText = this.add.text(
     for (const p of this.orbit.planets) p.setVisible(v);
     this.comboText.setVisible(v);
     this.crystalsText.setVisible(v);
+    this.pauseButton.setVisible(v);
+    this.pauseContainer.setVisible(false);
   }
 
   private startGame(): void {
@@ -267,6 +302,7 @@ this.crystalsText = this.add.text(
     this.trailGfx.clear();
     this.comboText.setVisible(false);
 this.crystalsText.setVisible(false);
+  this.pauseButton.setVisible(false);
 
     // HUD счёта прячем — он будет на оверлее
     this.scoreText.setVisible(false);
@@ -284,6 +320,18 @@ this.crystalsText.setVisible(false);
       duration: 250,
       ease: "Quad.easeOut",
     });
+  }
+
+  private togglePause(): void {
+    if (this.screen === "PLAYING") {
+      this.screen = "PAUSED";
+      this.pauseContainer.setVisible(true);
+      this.pauseButton.setVisible(false);
+    } else if (this.screen === "PAUSED") {
+      this.screen = "PLAYING";
+      this.pauseContainer.setVisible(false);
+      this.pauseButton.setVisible(true);
+    }
   }
 
   // ---------- ИГРОВОЙ ЦИКЛ ----------

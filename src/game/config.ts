@@ -7,6 +7,7 @@ import Phaser from "phaser";
 export const ORBIT_CONFIG = {
   captureZone: 18,
   satelliteRadius: 5,
+  planetMinGap: 20,
   orbitHeight: 22,        // высота спутника над планетой
   baseOmega: 1.6,         // рад/сек
   omegaGrowth: 0.02,      // +2% за прыжок

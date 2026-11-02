@@ -102,7 +102,7 @@ export class OrbitGame {
     dt = Math.min(dt, 0.033);
 
     for (const p of this.planets) {
-      p.update(dt, GAME_WIDTH, GAME_HEIGHT);
+      p.update(dt, GAME_WIDTH, GAME_HEIGHT, this.planets);
     }
 
     if (this.state === "ORBIT") this.updateOrbit(dt);
@@ -362,37 +362,32 @@ private spawnNextPlanet(initial: boolean): void {
   let y = 0;
   let found = false;
 
-  // Увеличили минимальный зазор между планетами (было 40, стало 50)
-  // и добавили больше попыток поиска
-  for (const minGap of [50, 30, 15]) {
-    for (let attempt = 0; attempt < 150; attempt++) {
-      const angle = dirAngle + Phaser.Math.FloatBetween(-1.0, 1.0);
-      const distance = Phaser.Math.FloatBetween(200, 350);
+  const maxRadius = radius + (kind === "pulsing" ? 16 : 0);
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const angle = dirAngle + Phaser.Math.FloatBetween(-1.0, 1.0);
+    const distance = Phaser.Math.FloatBetween(200, 350);
 
-      x = Phaser.Math.Clamp(
-        anchor.x + Math.cos(angle) * distance,
-        pad + radius,
-        GAME_WIDTH - pad - radius
-      );
+    x = Phaser.Math.Clamp(
+      anchor.x + Math.cos(angle) * distance,
+      pad + radius,
+      GAME_WIDTH - pad - radius
+    );
 
-      y = Phaser.Math.Clamp(
-        anchor.y + Math.sin(angle) * distance,
-        pad + radius,
-        GAME_HEIGHT - pad - radius
-      );
+    y = Phaser.Math.Clamp(
+      anchor.y + Math.sin(angle) * distance,
+      pad + radius,
+      GAME_HEIGHT - pad - radius
+    );
 
-      // Проверяем, что новая планета не пересекается ни с одной существующей
-      const free = this.planets.every((p) => {
-        const d = Phaser.Math.Distance.Between(x, y, p.x, p.y);
-        return d >= radius + p.radius + minGap;
-      });
+    const free = this.planets.every((p) => {
+      const d = Phaser.Math.Distance.Between(x, y, p.x, p.y);
+      return d >= maxRadius + p.getMaximumRadius() + ORBIT_CONFIG.planetMinGap;
+    });
 
-      if (free) {
-        found = true;
-        break;
-      }
+    if (free) {
+      found = true;
+      break;
     }
-    if (found) break;
   }
 
   // Если совсем нет места (экран забит), удаляем самую дальнюю планету-обманку

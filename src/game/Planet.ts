@@ -93,10 +93,17 @@ export class Planet extends Phaser.GameObjects.Container {
     }
   }
 
-  update(dt: number, width: number, height: number): void {
+  update(dt: number, width: number, height: number, planets: Planet[]): void {
     if (this.kind === "moving" && this.moveDir && this.moveSpeed) {
-      this.x += this.moveDir.x * this.moveSpeed * dt;
-      this.y += this.moveDir.y * this.moveSpeed * dt;
+      const nextX = this.x + this.moveDir.x * this.moveSpeed * dt;
+      const nextY = this.y + this.moveDir.y * this.moveSpeed * dt;
+
+      if (this.overlapsPlanet(nextX, nextY, this.getMaximumRadius(), planets)) {
+        this.moveDir.scale(-1);
+      } else {
+        this.x = nextX;
+        this.y = nextY;
+      }
 
       if (this.x < this.radius || this.x > width - this.radius) {
         this.moveDir.x *= -1;
@@ -110,7 +117,16 @@ export class Planet extends Phaser.GameObjects.Container {
 
     if (this.kind === "pulsing") {
       this.pulsePhase += dt * 2;
-      this.radius = this.baseRadius + Math.sin(this.pulsePhase) * this.pulseAmp;
+      const targetRadius = this.baseRadius + Math.sin(this.pulsePhase) * this.pulseAmp;
+      const maxRadius = planets.reduce((max, planet) => {
+        if (planet === this) return max;
+        return Math.min(
+          max,
+          this.distanceTo(planet.x, planet.y) -
+            planet.getMaximumRadius() - ORBIT_CONFIG.planetMinGap,
+        );
+      }, this.getMaximumRadius());
+      this.radius = Math.min(targetRadius, maxRadius);
       this.bodyGfx.setRadius(this.radius);
       this.glowGfx.setRadius(this.radius * 1.6);
       this.captureRing.setRadius(this.radius + ORBIT_CONFIG.captureZone);
@@ -126,5 +142,22 @@ export class Planet extends Phaser.GameObjects.Container {
 
   distanceTo(x: number, y: number): number {
     return Phaser.Math.Distance.Between(this.x, this.y, x, y);
+  }
+
+  getMaximumRadius(): number {
+    return this.baseRadius + this.pulseAmp;
+  }
+
+  private overlapsPlanet(
+    x: number,
+    y: number,
+    radius: number,
+    planets: Planet[],
+  ): boolean {
+    return planets.some((planet) => {
+      if (planet === this) return false;
+      return Phaser.Math.Distance.Between(x, y, planet.x, planet.y) <
+        radius + planet.getMaximumRadius() + ORBIT_CONFIG.planetMinGap;
+    });
   }
 }

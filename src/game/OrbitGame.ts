@@ -256,48 +256,45 @@ export class OrbitGame {
 
   
 private spawnCrystal(): void {
-  // 1. Проверяем лимит: не больше 10 кристаллов на экране
   if (this.crystals.length >= 10) return;
 
-  const pad = 40;
+  const current = this.currentPlanet;
+  // Берем следующую планету (цель), чтобы спавнить звездочки на пути к ней
+  const target = this.planets.find(p => p !== current && p.kind !== "blackhole");
+  if (!current || !target) return;
+
   const radius = 10;
-  const minGap = 45; // Увеличили зазор, чтобы звездочки не прилипали к планетам
+  const minGap = 45;
 
+  // Ищем точку на отрезке между текущей и следующей планетой
   for (let attempt = 0; attempt < 100; attempt++) {
-    const x = Phaser.Math.FloatBetween(pad, GAME_WIDTH - pad);
-    const y = Phaser.Math.FloatBetween(pad, GAME_HEIGHT - pad);
+    // Случайная точка на 30-70% пути от текущей планеты к следующей
+    const t = Phaser.Math.FloatBetween(0.3, 0.7);
+    const x = Phaser.Math.Linear(current.x, target.x, t);
+    const y = Phaser.Math.Linear(current.y, target.y, t);
 
-    // 2. Проверяем, чтобы кристалл не спавнился на планете или слишком близко к ней
+    // Проверяем, чтобы не спавнить внутри планет (учитывая пульсацию!)
     const overlapsPlanet = this.planets.some((p) => {
-  // Используем максимальный радиус планеты (с учетом пульсации) + запас
-  const pRadius = p.getMaximumRadius ? p.getMaximumRadius() : p.radius;
-  return Phaser.Math.Distance.Between(x, y, p.x, p.y) < pRadius + radius + minGap;
-});
+      const pRadius = p.getMaximumRadius ? p.getMaximumRadius() : p.radius;
+      return Phaser.Math.Distance.Between(x, y, p.x, p.y) < pRadius + radius + minGap;
+    });
 
     if (overlapsPlanet) continue;
 
-    // Не создаём кристаллы друг на друге
+    // Проверяем, чтобы не спавнить на других звездочках
     const overlapsCrystal = this.crystals.some((c) =>
-      !c.collected &&
-      Phaser.Math.Distance.Between(x, y, c.x, c.y) < radius * 2 + minGap
+      !c.collected && Phaser.Math.Distance.Between(x, y, c.x, c.y) < radius * 2 + minGap
     );
 
     if (overlapsCrystal) continue;
 
-    const star = this.scene.add.star(
-      0, 0, 5, 5, 12, 0xffe66d
-    );
-
+    const star = this.scene.add.star(0, 0, 5, 5, 12, 0xffe66d);
     star.setStrokeStyle(2, 0xffffff, 0.9);
-
     const object = this.scene.add.container(x, y, [star]);
     object.setDepth(5);
 
-    this.crystals.push({
-      x, y, object, collected: false,
-    });
-
-    return; // Успешно создали, выходим
+    this.crystals.push({ x, y, object, collected: false });
+    return; 
   }
 }
 

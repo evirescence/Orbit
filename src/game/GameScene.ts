@@ -15,6 +15,8 @@ export class GameScene extends Phaser.Scene {
   private phaseText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private crystalsText!: Phaser.GameObjects.Text;
+  private trajectoryGfx!: Phaser.GameObjects.Graphics;
+  private showTrajectory = false;
 
   // экран правил
   private rulesContainer!: Phaser.GameObjects.Container;
@@ -37,6 +39,14 @@ export class GameScene extends Phaser.Scene {
 
     // графика для игры
     this.trailGfx = this.add.graphics();
+    this.trajectoryGfx = this.add.graphics();
+    this.trajectoryGfx.setDepth(5); // Под HUD, но над фоном
+
+    // Включатель/выключатель траектории на клавишу T
+    this.input.keyboard?.on("keydown-T", () => {
+      this.showTrajectory = !this.showTrajectory;
+      if (!this.showTrajectory) this.trajectoryGfx.clear(); // Стереть, если выключили
+    });
     this.satelliteGfx = this.add.circle(
       0, 0, ORBIT_CONFIG.satelliteRadius, COLORS.satellite, 1
     );
@@ -136,15 +146,11 @@ this.crystalsText = this.add.text(
     }).setOrigin(0.5);
 
     const rules = this.add.text(cx, cy - 140, [
-      "Как играть:",
+      "Управление:",
       "",
-      "1.  Спутник летает вокруг планеты",
-      "2.  ТАП / ПРОБЕЛ — оторваться от орбиты",
-      "3.  Летишь по касательной к следующей планете",
-      "4.  Попал в кольцо — захват, счёт +1",
-      "5.  Промахнулся или улетел — Game Over",
-      "6.  Звездочка дает бонус к счету",
-      "7.  Нажмите P чтобы поставить на паузу",
+      "1.  Space — оторваться от орбиты",
+      "2.  P или Esc — пауза",
+      "3.  T — включить изображение орбиты",
       "",
       "Планеты:",
       "•  голубая   — статичная",
@@ -366,6 +372,23 @@ this.crystalsText.setVisible(false);
 
     // trail
     this.trailGfx.clear();
+    this.trajectoryGfx.clear(); 
+    if (this.showTrajectory && this.orbit.state === "ORBIT") {
+      const p = this.orbit.currentPlanet;
+      const s = this.orbit.satellite;
+      
+      if (p) {
+        const R = p.radius + ORBIT_CONFIG.orbitHeight;
+        const vx = -p.omega * R * Math.sin(s.theta);
+        const vy =  p.omega * R * Math.cos(s.theta);
+        
+        this.trajectoryGfx.lineStyle(2, 0xffffff, 0.4);
+        this.trajectoryGfx.beginPath();
+        this.trajectoryGfx.moveTo(s.x, s.y);
+        this.trajectoryGfx.lineTo(s.x + vx * 400, s.y + vy * 400);
+        this.trajectoryGfx.strokePath();
+      }
+    }
     const tr = this.orbit.trail;
     for (let i = 0; i < tr.length; i++) {
       const t = i / tr.length;

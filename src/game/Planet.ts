@@ -93,7 +93,13 @@ export class Planet extends Phaser.GameObjects.Container {
     }
   }
 
-  update(dt: number, width: number, height: number, planets: Planet[]): void {
+  update(
+    dt: number,
+    width: number,
+    height: number,
+    planets: Planet[],
+    captureZone: number,
+  ): void {
     if (this.kind === "moving" && this.moveDir && this.moveSpeed) {
       const nextX = this.x + this.moveDir.x * this.moveSpeed * dt;
       const nextY = this.y + this.moveDir.y * this.moveSpeed * dt;
@@ -129,8 +135,9 @@ export class Planet extends Phaser.GameObjects.Container {
       this.radius = Math.min(targetRadius, maxRadius);
       this.bodyGfx.setRadius(this.radius);
       this.glowGfx.setRadius(this.radius * 1.6);
-      this.captureRing.setRadius(this.radius + ORBIT_CONFIG.captureZone);
     }
+
+    this.captureRing.setRadius(this.radius + captureZone);
 
     if (this.kind === "vanishing") {
       this.vanishTimer += dt;

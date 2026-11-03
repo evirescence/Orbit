@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Planet, PlanetKind } from "./Planet";
 import { ORBIT_CONFIG, GAME_WIDTH, GAME_HEIGHT, COLORS } from "./config";
+import { PHASE_CONFIG } from "./phaseConfig";
 
 export type GameState = "ORBIT" | "FLYING" | "DEAD";
 
@@ -15,6 +16,7 @@ type Crystal = {
 
 export class OrbitGame {
   state: GameState = "ORBIT";
+  phase: 1 | 2 = 1;
   score = 0;
   best = 0;
   jumps = 0;
@@ -31,6 +33,8 @@ export class OrbitGame {
   crystals: Crystal[] = [];
 
   private readonly crystalValue = 5;
+  private phaseElapsed = 0;
+  private captureZone = ORBIT_CONFIG.captureZone;
 
   constructor(private scene: Phaser.Scene) {
     this.reset();
@@ -54,6 +58,9 @@ export class OrbitGame {
 
   reset(): void {
     this.state = "ORBIT";
+    this.phase = 1;
+    this.phaseElapsed = 0;
+    this.captureZone = ORBIT_CONFIG.captureZone;
     this.score = 0;
     this.jumps = 0;
     this.crystals.forEach((c) => c.object.destroy());
@@ -101,8 +108,15 @@ export class OrbitGame {
   update(dt: number): void {
     dt = Math.min(dt, 0.033);
 
+    if (this.phase === 1) {
+      this.phaseElapsed += dt;
+      if (this.phaseElapsed >= PHASE_CONFIG.phaseTwoAfterSeconds) {
+        this.startPhaseTwo();
+      }
+    }
+
     for (const p of this.planets) {
-      p.update(dt, GAME_WIDTH, GAME_HEIGHT, this.planets);
+      p.update(dt, GAME_WIDTH, GAME_HEIGHT, this.planets, this.captureZone);
     }
 
     if (this.state === "ORBIT") this.updateOrbit(dt);
@@ -110,6 +124,15 @@ export class OrbitGame {
 
     this.trail.push({ x: this.satellite.x, y: this.satellite.y });
     if (this.trail.length > ORBIT_CONFIG.trailLength) this.trail.shift();
+  }
+
+  private startPhaseTwo(): void {
+    this.phase = 2;
+    this.captureZone = PHASE_CONFIG.phaseTwoCaptureZone;
+
+    for (const planet of this.planets) {
+      planet.omega *= PHASE_CONFIG.phaseTwoOrbitSpeedMultiplier;
+    }
   }
 
   private updateOrbit(dt: number): void {
@@ -146,7 +169,7 @@ export class OrbitGame {
 
       if (
         p.distanceTo(this.satellite.x, this.satellite.y) <
-        p.radius + ORBIT_CONFIG.captureZone
+        p.radius + this.captureZone
       ) {
         this.captureOrbit(p);
         return;
@@ -191,7 +214,8 @@ export class OrbitGame {
       this.satellite.x - p.x
     );
     p.omega = ORBIT_CONFIG.baseOmega *
-      (1 + this.jumps * ORBIT_CONFIG.omegaGrowth);
+      (1 + this.jumps * ORBIT_CONFIG.omegaGrowth) *
+      (this.phase === 2 ? PHASE_CONFIG.phaseTwoOrbitSpeedMultiplier : 1);
 
     
     this.combo++;
@@ -244,9 +268,11 @@ private spawnCrystal(): void {
     const y = Phaser.Math.FloatBetween(pad, GAME_HEIGHT - pad);
 
     // 2. Проверяем, чтобы кристалл не спавнился на планете или слишком близко к ней
-    const overlapsPlanet = this.planets.some((p) =>
-      Phaser.Math.Distance.Between(x, y, p.x, p.y) < p.radius + radius + minGap
-    );
+    const overlapsPlanet = this.planets.some((p) => {
+  // Используем максимальный радиус планеты (с учетом пульсации) + запас
+  const pRadius = p.getMaximumRadius ? p.getMaximumRadius() : p.radius;
+  return Phaser.Math.Distance.Between(x, y, p.x, p.y) < pRadius + radius + minGap;
+});
 
     if (overlapsPlanet) continue;
 
@@ -409,7 +435,8 @@ private spawnNextPlanet(initial: boolean): void {
   const planet = new Planet(this.scene, {
     x, y, radius, kind,
     color: this.colorForKind(kind),
-    omega: ORBIT_CONFIG.baseOmega,
+    omega: ORBIT_CONFIG.baseOmega *
+      (this.phase === 2 ? PHASE_CONFIG.phaseTwoOrbitSpeedMultiplier : 1),
   });
 
   if (kind === "vanishing") {

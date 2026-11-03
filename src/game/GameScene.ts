@@ -12,6 +12,7 @@ export class GameScene extends Phaser.Scene {
   private trailGfx!: Phaser.GameObjects.Graphics;
   private scoreText!: Phaser.GameObjects.Text;
   private bestText!: Phaser.GameObjects.Text;
+  private phaseText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private crystalsText!: Phaser.GameObjects.Text;
 
@@ -53,6 +54,13 @@ export class GameScene extends Phaser.Scene {
       fontSize: "14px",
       color: "#8888aa",
     }).setOrigin(0.5).setDepth(10);
+
+    this.phaseText = this.add.text(GAME_WIDTH / 2, 104, "ФАЗА 2", {
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "16px",
+      color: "#ffb84d",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(10).setVisible(false);
 
     
 this.comboText = this.add.text(35, 40, "COMBO x0", {
@@ -136,6 +144,7 @@ this.crystalsText = this.add.text(
       "4.  Попал в кольцо — захват, счёт +1",
       "5.  Промахнулся или улетел — Game Over",
       "6.  Звездочка дает бонус к счету",
+      "7.  Нажмите P чтобы поставить на паузу",
       "",
       "Планеты:",
       "•  голубая   — статичная",
@@ -269,6 +278,7 @@ this.crystalsText = this.add.text(
     this.trailGfx.setVisible(v);
     this.scoreText.setVisible(v);
     this.bestText.setVisible(v);
+    this.phaseText.setVisible(v && this.orbit.phase === 2);
     for (const p of this.orbit.planets) p.setVisible(v);
     this.comboText.setVisible(v);
     this.crystalsText.setVisible(v);
@@ -341,6 +351,7 @@ this.crystalsText.setVisible(false);
 
     const dt = delta / 1000;
     this.orbit.update(dt);
+    this.phaseText.setVisible(this.orbit.phase === 2);
 
     // если игра умерла — переключаемся на экран game over
     if (this.orbit.state === "DEAD") {
